@@ -43,10 +43,10 @@ class ContributionSource(str, Enum):
 
 
 # IRS HSA contribution limits by tax year: (individual, family)
-CONTRIBUTION_LIMITS: dict[int, tuple[float, float]] = {
-    2024: (4150.00, 8300.00),
-    2025: (4300.00, 8550.00),
-    2026: (4300.00, 8550.00),
+CONTRIBUTION_LIMITS: dict[int, tuple[str, str]] = {
+    2024: ("4150.00", "8300.00"),
+    2025: ("4300.00", "8550.00"),
+    2026: ("4300.00", "8550.00"),
 }
 
 ALLOWED_RECEIPT_MIME_TYPES = {"image/jpeg", "image/png", "application/pdf"}

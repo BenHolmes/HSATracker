@@ -6,8 +6,17 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import Expense, Reimbursement
-from app.schemas import ExpenseCreate, ExpenseUpdate, ReimbursementCreate, ReimbursementUpdate
+from app.constants import CONTRIBUTION_LIMITS
+from app.models import AccountBalance, Contribution, Expense, Reimbursement
+from app.schemas import (
+    BalanceCreate,
+    ContributionCreate,
+    ContributionUpdate,
+    ExpenseCreate,
+    ExpenseUpdate,
+    ReimbursementCreate,
+    ReimbursementUpdate,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -176,3 +185,157 @@ async def delete_reimbursement(db: AsyncSession, reimbursement_id: UUID) -> None
     reimbursement = await get_reimbursement(db, reimbursement_id)
     await db.delete(reimbursement)
     await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Contributions
+# ---------------------------------------------------------------------------
+
+async def get_contributions(
+    db: AsyncSession, tax_year: int
+) -> tuple[list[Contribution], Decimal]:
+    result = await db.execute(
+        select(Contribution)
+        .where(Contribution.tax_year == tax_year)
+        .order_by(Contribution.date.desc())
+    )
+    items = list(result.scalars().all())
+    total = sum((c.amount for c in items), Decimal("0.00"))
+    return items, total
+
+
+async def get_contribution(db: AsyncSession, contribution_id: UUID) -> Contribution:
+    obj = await db.get(Contribution, contribution_id)
+    if obj is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contribution not found")
+    return obj
+
+
+async def create_contribution(db: AsyncSession, data: ContributionCreate) -> Contribution:
+    obj = Contribution(**data.model_dump())
+    db.add(obj)
+    await db.commit()
+    await db.refresh(obj)
+    return obj
+
+
+async def update_contribution(
+    db: AsyncSession, contribution_id: UUID, data: ContributionUpdate
+) -> Contribution:
+    obj = await get_contribution(db, contribution_id)
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(obj, field, value)
+    await db.commit()
+    await db.refresh(obj)
+    return obj
+
+
+async def delete_contribution(db: AsyncSession, contribution_id: UUID) -> None:
+    obj = await get_contribution(db, contribution_id)
+    await db.delete(obj)
+    await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Account Balance
+# ---------------------------------------------------------------------------
+
+async def get_balances(db: AsyncSession) -> tuple[list[AccountBalance], AccountBalance | None]:
+    result = await db.execute(
+        select(AccountBalance).order_by(AccountBalance.as_of_date.desc())
+    )
+    items = list(result.scalars().all())
+    latest = items[0] if items else None
+    return items, latest
+
+
+async def get_balance(db: AsyncSession, balance_id: UUID) -> AccountBalance:
+    obj = await db.get(AccountBalance, balance_id)
+    if obj is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Balance not found")
+    return obj
+
+
+async def create_balance(db: AsyncSession, data: BalanceCreate) -> AccountBalance:
+    obj = AccountBalance(**data.model_dump())
+    db.add(obj)
+    await db.commit()
+    await db.refresh(obj)
+    return obj
+
+
+async def delete_balance(db: AsyncSession, balance_id: UUID) -> None:
+    obj = await get_balance(db, balance_id)
+    await db.delete(obj)
+    await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+
+async def get_summary(db: AsyncSession, year: int) -> dict:
+    # Expenses
+    expenses_result = await db.execute(
+        select(Expense).where(func.extract("year", Expense.date) == year)
+    )
+    expenses = list(expenses_result.scalars().all())
+
+    total_expenses = sum((e.amount for e in expenses), Decimal("0.00"))
+    hsa_paid = sum((e.amount for e in expenses if e.payment_method == "hsa"), Decimal("0.00"))
+    out_of_pocket = sum(
+        (e.amount for e in expenses if e.payment_method == "out_of_pocket"), Decimal("0.00")
+    )
+
+    # Reimbursements (for expenses in this year)
+    expense_ids = [e.id for e in expenses]
+    pending_amount = Decimal("0.00")
+    reimbursed_ytd = Decimal("0.00")
+    if expense_ids:
+        reimb_result = await db.execute(
+            select(Reimbursement).where(Reimbursement.expense_id.in_(expense_ids))
+        )
+        reimbursements = list(reimb_result.scalars().all())
+        expense_map = {e.id: e for e in expenses}
+        pending_amount = sum(
+            (expense_map[r.expense_id].amount for r in reimbursements if r.status == "pending"),
+            Decimal("0.00"),
+        )
+        reimbursed_ytd = sum(
+            (r.reimbursed_amount for r in reimbursements
+             if r.status == "reimbursed" and r.reimbursed_amount),
+            Decimal("0.00"),
+        )
+
+    # Contributions
+    contrib_result = await db.execute(
+        select(Contribution).where(Contribution.tax_year == year)
+    )
+    contributions = list(contrib_result.scalars().all())
+    total_contributed = sum((c.amount for c in contributions), Decimal("0.00"))
+
+    limits = CONTRIBUTION_LIMITS.get(year, CONTRIBUTION_LIMITS[max(CONTRIBUTION_LIMITS)])
+    limit_individual = Decimal(limits[0])
+    limit_family = Decimal(limits[1])
+
+    # Latest balance
+    balance_result = await db.execute(
+        select(AccountBalance).order_by(AccountBalance.as_of_date.desc()).limit(1)
+    )
+    latest_balance_obj = balance_result.scalar_one_or_none()
+
+    return {
+        "year": year,
+        "total_expenses": total_expenses,
+        "hsa_paid_expenses": hsa_paid,
+        "out_of_pocket_expenses": out_of_pocket,
+        "pending_reimbursement": pending_amount,
+        "reimbursed_ytd": reimbursed_ytd,
+        "total_contributed": total_contributed,
+        "limit_individual": limit_individual,
+        "limit_family": limit_family,
+        "remaining_individual": max(limit_individual - total_contributed, Decimal("0.00")),
+        "remaining_family": max(limit_family - total_contributed, Decimal("0.00")),
+        "latest_balance": latest_balance_obj.balance if latest_balance_obj else None,
+        "latest_balance_date": latest_balance_obj.as_of_date if latest_balance_obj else None,
+    }
