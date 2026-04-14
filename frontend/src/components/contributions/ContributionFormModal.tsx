@@ -20,7 +20,7 @@ const schema = z.object({
     { message: 'Amount must be greater than 0' },
   ),
   source:   z.enum(['self', 'employer', 'other']),
-  tax_year: z.coerce.number().int().min(2000),
+  tax_year: z.number().int().min(2000),
   notes:    z.string().optional(),
 })
 
@@ -114,7 +114,7 @@ export default function ContributionFormModal({ contribution, defaultTaxYear, on
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Tax Year</label>
-            <select {...register('tax_year')} className={fieldClass}>
+            <select {...register('tax_year', { valueAsNumber: true })} className={fieldClass}>
               {YEAR_OPTIONS.map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}

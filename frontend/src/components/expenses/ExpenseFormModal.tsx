@@ -8,7 +8,7 @@ import { getReceipts } from '../../api/receipts'
 import { updateReimbursement } from '../../api/reimbursements'
 import { HSA_CATEGORIES } from '../../lib/constants'
 import { formatLabel } from '../../lib/formatters'
-import type { ExpenseOut } from '../../types'
+import type { ExpenseOut, HsaCategory } from '../../types'
 import ReceiptList from '../receipts/ReceiptList'
 import ReceiptUpload from '../receipts/ReceiptUpload'
 import Modal from '../ui/Modal'
@@ -81,7 +81,7 @@ export default function ExpenseFormModal({ expense, onClose }: Props) {
             provider_name:  data.provider_name,
             description:    data.description,
             amount:         data.amount,
-            category:       data.category,
+            category:       data.category as HsaCategory,
             payment_method: data.payment_method,
             notes:          data.notes,
           })
@@ -90,7 +90,7 @@ export default function ExpenseFormModal({ expense, onClose }: Props) {
             provider_name:  data.provider_name,
             description:    data.description,
             amount:         data.amount,
-            category:       data.category,
+            category:       data.category as HsaCategory,
             payment_method: data.payment_method,
             notes:          data.notes,
           })
