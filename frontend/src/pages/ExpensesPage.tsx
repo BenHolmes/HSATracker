@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Paperclip, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { deleteExpense, getExpenses } from '../api/expenses'
@@ -161,6 +161,12 @@ export default function ExpensesPage() {
                   </td>
                   <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">
                     {expense.provider_name}
+                    {expense.receipts.length > 0 && (
+                      <span className="ml-1.5 inline-flex items-center gap-0.5 text-xs text-slate-400">
+                        <Paperclip className="w-3 h-3" />
+                        {expense.receipts.length}
+                      </span>
+                    )}
                   </td>
                   <td
                     className="px-4 py-3 text-slate-600 max-w-48 truncate"

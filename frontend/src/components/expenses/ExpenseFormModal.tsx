@@ -1,13 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { createExpense, updateExpense } from '../../api/expenses'
+import { getReceipts } from '../../api/receipts'
 import { updateReimbursement } from '../../api/reimbursements'
 import { HSA_CATEGORIES } from '../../lib/constants'
 import { formatLabel } from '../../lib/formatters'
 import type { ExpenseOut } from '../../types'
+import ReceiptList from '../receipts/ReceiptList'
+import ReceiptUpload from '../receipts/ReceiptUpload'
 import Modal from '../ui/Modal'
 
 const schema = z.object({
@@ -21,7 +24,6 @@ const schema = z.object({
   category:       z.string().min(1, 'Please select a category'),
   payment_method: z.enum(['out_of_pocket', 'hsa']),
   notes:          z.string().optional(),
-  // Reimbursement fields — only relevant when editing an expense with a reimbursement
   reimbursed_amount: z.string().optional(),
   reimbursed_date:   z.string().optional(),
 })
@@ -37,6 +39,14 @@ export default function ExpenseFormModal({ expense, onClose }: Props) {
   const queryClient = useQueryClient()
   const isEdit = !!expense
   const reimbursement = expense?.reimbursement ?? null
+
+  // Live receipt list — refetches when uploads/deletes happen
+  const { data: receipts = [] } = useQuery({
+    queryKey: ['expense-receipts', expense?.id],
+    queryFn: () => getReceipts(expense!.id),
+    enabled: isEdit,
+    initialData: expense?.receipts ?? [],
+  })
 
   const {
     register,
@@ -65,7 +75,6 @@ export default function ExpenseFormModal({ expense, onClose }: Props) {
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
-      // Always update / create the expense itself
       const result = isEdit
         ? await updateExpense(expense!.id, {
             date:           data.date,
@@ -86,7 +95,6 @@ export default function ExpenseFormModal({ expense, onClose }: Props) {
             notes:          data.notes,
           })
 
-      // If editing and a reimbursement exists, sync the reimbursement fields
       if (isEdit && reimbursement) {
         await updateReimbursement(reimbursement.id, {
           reimbursed_amount: data.reimbursed_amount || undefined,
@@ -200,7 +208,7 @@ export default function ExpenseFormModal({ expense, onClose }: Props) {
           />
         </div>
 
-        {/* Reimbursement section — only shown when editing an expense with a reimbursement */}
+        {/* Reimbursement section */}
         {isEdit && reimbursement && (
           <div className="pt-2 border-t border-slate-100 space-y-4">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -231,6 +239,17 @@ export default function ExpenseFormModal({ expense, onClose }: Props) {
                 />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Receipts section — only when editing */}
+        {isEdit && (
+          <div className="pt-2 border-t border-slate-100 space-y-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Receipts
+            </p>
+            <ReceiptList expenseId={expense!.id} receipts={receipts} />
+            <ReceiptUpload expenseId={expense!.id} />
           </div>
         )}
 
