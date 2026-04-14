@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import Layout from './components/layout/Layout'
 import BalancePage from './pages/BalancePage'
 import ContributionsPage from './pages/ContributionsPage'
 import DashboardPage from './pages/DashboardPage'
@@ -20,12 +21,14 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/expenses" element={<ExpensesPage />} />
-          <Route path="/reimbursements" element={<ReimbursementsPage />} />
-          <Route path="/contributions" element={<ContributionsPage />} />
-          <Route path="/balance" element={<BalancePage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route element={<Layout />}>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/expenses" element={<ExpensesPage />} />
+            <Route path="/reimbursements" element={<ReimbursementsPage />} />
+            <Route path="/contributions" element={<ContributionsPage />} />
+            <Route path="/balance" element={<BalancePage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
