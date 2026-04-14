@@ -73,6 +73,9 @@ export interface ExpenseOut {
 export interface PaginatedExpenses {
   items: ExpenseOut[]
   total: number
+  page: number
+  size: number
+  pages: number
 }
 
 export interface ExpenseCreate {

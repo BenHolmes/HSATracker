@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Paperclip, Pencil, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronLeft, ChevronRight, Paperclip, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { deleteExpense, getExpenses } from '../api/expenses'
 import ExpenseFormModal from '../components/expenses/ExpenseFormModal'
@@ -10,7 +10,8 @@ import { formatCurrency, formatDate, formatLabel } from '../lib/formatters'
 import type { ExpenseOut } from '../types'
 
 const CURRENT_YEAR = new Date().getFullYear()
-const YEAR_OPTIONS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2]
+const YEAR_OPTIONS  = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2]
+const PAGE_SIZE     = 50
 
 function ReimbursementBadge({ status }: { status?: string | null }) {
   if (!status) return <Badge variant="gray">Not tracked</Badge>
@@ -26,6 +27,10 @@ export default function ExpensesPage() {
   const [category, setCategory]           = useState('')
   const [paymentMethod, setPaymentMethod] = useState('')
 
+  // Pagination — reset to page 1 whenever filters change
+  const [page, setPage] = useState(1)
+  useEffect(() => { setPage(1) }, [year, category, paymentMethod])
+
   // Modal state
   const [modalOpen, setModalOpen]           = useState(false)
   const [editingExpense, setEditingExpense] = useState<ExpenseOut | null>(null)
@@ -34,12 +39,14 @@ export default function ExpensesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['expenses', { year, category, paymentMethod }],
+    queryKey: ['expenses', { year, category, paymentMethod, page }],
     queryFn: () =>
       getExpenses({
         year,
         category:       category      || undefined,
         payment_method: paymentMethod || undefined,
+        page,
+        size: PAGE_SIZE,
       }),
   })
 
@@ -72,6 +79,11 @@ export default function ExpensesPage() {
     setEditingExpense(null)
   }
 
+  const totalPages  = data?.pages ?? 1
+  const totalItems  = data?.total ?? 0
+  const firstItem   = totalItems === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const lastItem    = Math.min(page * PAGE_SIZE, totalItems)
+
   const selectClass =
     'border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent'
 
@@ -81,7 +93,9 @@ export default function ExpensesPage() {
       {/* Page header */}
       <div className="flex items-center justify-between mb-5">
         <p className="text-sm text-slate-500">
-          {isLoading ? 'Loading…' : `${data?.total ?? 0} expense${data?.total !== 1 ? 's' : ''}`}
+          {isLoading
+            ? 'Loading…'
+            : `${totalItems} expense${totalItems !== 1 ? 's' : ''}`}
         </p>
         <button
           onClick={openAdd}
@@ -235,6 +249,36 @@ export default function ExpensesPage() {
             )}
           </tbody>
         </table>
+
+        {/* Pagination footer */}
+        {!isLoading && totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+            <p className="text-xs text-slate-500">
+              Showing {firstItem}–{lastItem} of {totalItems}
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Previous page"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="px-2 text-xs text-slate-600">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Next page"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal */}

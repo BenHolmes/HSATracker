@@ -19,7 +19,7 @@ export default function TrackReimbursementModal({ onClose }: Props) {
   // Fetch all out-of-pocket expenses (no year filter = all years)
   const { data, isLoading } = useQuery({
     queryKey: ['expenses-oop-all'],
-    queryFn:  () => getExpenses({ payment_method: 'out_of_pocket', limit: 500 }),
+    queryFn:  () => getExpenses({ payment_method: 'out_of_pocket', size: 1000, page: 1 }),
   })
 
   // Only show expenses that aren't already being tracked

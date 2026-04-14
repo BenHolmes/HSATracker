@@ -1,29 +1,38 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi_pagination import Page
+from fastapi_pagination.customization import CustomizedPage, UseParamsFields
+from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.database import get_db
-from app.schemas import ExpenseCreate, ExpenseOut, ExpenseUpdate, PaginatedExpenses
+from app.schemas import ExpenseCreate, ExpenseOut, ExpenseUpdate
 
 router = APIRouter()
 
+# Allow up to 1000 items per page so callers can fetch all results in one request
+# (e.g. the "Track Reimbursement" modal which needs the full OOP expense list).
+HsaPage = CustomizedPage[
+    Page,
+    UseParamsFields(size=Query(50, ge=1, le=1000)),
+]
 
-@router.get("/", response_model=PaginatedExpenses)
+
+@router.get("/", response_model=HsaPage[ExpenseOut])
 async def list_expenses(
     year: int | None = Query(None),
     category: str | None = Query(None),
     payment_method: str | None = Query(None),
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
-    items, total = await crud.get_expenses(
-        db, year=year, category=category, payment_method=payment_method,
-        limit=limit, offset=offset,
+    query = crud.build_expenses_query(
+        year=year,
+        category=category,
+        payment_method=payment_method,
     )
-    return PaginatedExpenses(items=items, total=total)
+    return await paginate(db, query)
 
 
 @router.post("/", response_model=ExpenseOut, status_code=status.HTTP_201_CREATED)

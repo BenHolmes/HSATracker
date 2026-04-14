@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_pagination import add_pagination
 
 from app.routers import balance, contributions, expenses, reimbursements, summary
 from app.routers.receipts import expense_router as receipts_expense_router
@@ -21,6 +22,9 @@ app.include_router(balance.router, prefix="/api/v1/balance", tags=["balance"])
 app.include_router(summary.router, prefix="/api/v1/summary", tags=["summary"])
 app.include_router(receipts_expense_router, prefix="/api/v1/expenses", tags=["receipts"])
 app.include_router(receipts_router, prefix="/api/v1/receipts", tags=["receipts"])
+
+
+add_pagination(app)
 
 
 @app.get("/api/v1/health")

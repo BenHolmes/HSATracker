@@ -40,8 +40,8 @@ export default function DashboardPage() {
   })
 
   const { data: recent } = useQuery({
-    queryKey: ['expenses', { year, limit: 5 }],
-    queryFn:  () => getExpenses({ year, limit: 5 }),
+    queryKey: ['expenses', { year, size: 5, page: 1 }],
+    queryFn:  () => getExpenses({ year, size: 5, page: 1 }),
   })
 
   const dash = (val?: string) =>

@@ -5,8 +5,8 @@ export interface ExpenseFilters {
   year?: number
   category?: string
   payment_method?: string
-  limit?: number
-  offset?: number
+  page?: number
+  size?: number
 }
 
 export async function getExpenses(filters: ExpenseFilters = {}): Promise<PaginatedExpenses> {

@@ -4,7 +4,7 @@ from pathlib import Path
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -25,34 +25,24 @@ from app.schemas import (
 # Expenses
 # ---------------------------------------------------------------------------
 
-async def get_expenses(
-    db: AsyncSession,
+def build_expenses_query(
     year: int | None = None,
     category: str | None = None,
     payment_method: str | None = None,
-    limit: int = 50,
-    offset: int = 0,
-) -> tuple[list[Expense], int]:
+) -> Select:
+    """Return a filterable Select statement for use with fastapi-pagination's paginate()."""
     query = (
         select(Expense)
         .options(selectinload(Expense.reimbursement), selectinload(Expense.receipts))
         .order_by(Expense.date.desc(), Expense.created_at.desc())
     )
-    count_query = select(func.count()).select_from(Expense)
-
     if year is not None:
         query = query.where(func.extract("year", Expense.date) == year)
-        count_query = count_query.where(func.extract("year", Expense.date) == year)
     if category is not None:
         query = query.where(Expense.category == category)
-        count_query = count_query.where(Expense.category == category)
     if payment_method is not None:
         query = query.where(Expense.payment_method == payment_method)
-        count_query = count_query.where(Expense.payment_method == payment_method)
-
-    total = (await db.execute(count_query)).scalar_one()
-    items = (await db.execute(query.limit(limit).offset(offset))).scalars().all()
-    return list(items), total
+    return query
 
 
 async def get_expense(db: AsyncSession, expense_id: UUID) -> Expense:
