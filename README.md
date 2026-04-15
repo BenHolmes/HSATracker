@@ -149,10 +149,12 @@ hsatracker/
 
 ## IRS Contribution Limits (built-in)
 
+Limits for all years from 2004 to 2026 are built into `backend/app/constants.py`. The contribution form only accepts `tax_year` values within this range. Recent years:
+
 | Year | Individual | Family |
 |---|---|---|
 | 2024 | $4,150 | $8,300 |
 | 2025 | $4,300 | $8,550 |
 | 2026 | $4,400 | $8,750 |
 
-Limits for years not in the table fall back to the most recent known year.
+Update `CONTRIBUTION_LIMITS` and `CONTRIBUTION_TAX_YEARS` (frontend) when the IRS publishes limits for a new year.
