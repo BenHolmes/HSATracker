@@ -178,6 +178,21 @@ async def update_reimbursement(
     db: AsyncSession, reimbursement_id: UUID, data: ReimbursementUpdate
 ) -> Reimbursement:
     reimbursement = await get_reimbursement(db, reimbursement_id)
+
+    # Prevent reimbursed_amount from exceeding what was actually spent.
+    # expense is eagerly loaded by get_reimbursement so no extra query needed.
+    if (
+        data.reimbursed_amount is not None
+        and data.reimbursed_amount > reimbursement.expense.amount
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Reimbursed amount ${data.reimbursed_amount} exceeds "
+                f"the expense amount ${reimbursement.expense.amount}"
+            ),
+        )
+
     for field, value in data.model_dump(exclude_unset=True).items():
         if field in _REIMBURSEMENT_MUTABLE:
             setattr(reimbursement, field, value)

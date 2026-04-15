@@ -8,12 +8,10 @@ import { formatCurrency, formatDate } from '../../lib/formatters'
 import type { ReimbursementOut } from '../../types'
 import Modal from '../ui/Modal'
 
-const schema = z.object({
-  reimbursed_amount: z.string().optional(),
-  reimbursed_date:   z.string().optional(),
-})
-
-type FormData = z.infer<typeof schema>
+type FormData = {
+  reimbursed_amount: string
+  reimbursed_date: string
+}
 
 interface Props {
   reimbursement: ReimbursementOut
@@ -23,7 +21,18 @@ interface Props {
 export default function MarkReimbursedModal({ reimbursement, onClose }: Props) {
   const queryClient = useQueryClient()
 
-  const { register, handleSubmit } = useForm<FormData>({
+  // Schema is defined inside the component so it can reference the expense
+  // amount from props and provide a precise validation message.
+  const expenseAmount = parseFloat(reimbursement.expense.amount)
+  const schema = z.object({
+    reimbursed_amount: z.string().refine(
+      val => !val || (parseFloat(val) > 0 && parseFloat(val) <= expenseAmount),
+      { message: `Must be between $0.01 and ${formatCurrency(reimbursement.expense.amount)}` },
+    ),
+    reimbursed_date: z.string().optional(),
+  })
+
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       reimbursed_amount: reimbursement.reimbursed_amount ?? '',
@@ -83,10 +92,14 @@ export default function MarkReimbursedModal({ reimbursement, onClose }: Props) {
                 type="number"
                 step="0.01"
                 min="0.01"
+                max={expenseAmount}
                 placeholder="0.00"
                 {...register('reimbursed_amount')}
                 className={fieldClass}
               />
+              {errors.reimbursed_amount && (
+                <p className="text-red-500 text-xs mt-1">{errors.reimbursed_amount.message}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">

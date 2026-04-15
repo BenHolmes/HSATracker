@@ -30,6 +30,21 @@ const schema = z.object({
   notes:          z.string().optional(),
   reimbursed_amount: z.string().optional(),
   reimbursed_date:   z.string().optional(),
+}).superRefine((data, ctx) => {
+  // Cross-field validation: reimbursed amount must not exceed the expense amount.
+  // Both values come from the same form so we compare against the current amount field,
+  // not the saved expense (the user may be editing both fields at once).
+  if (data.reimbursed_amount) {
+    const expenseAmt = parseFloat(data.amount)
+    const reimbAmt   = parseFloat(data.reimbursed_amount)
+    if (!isNaN(expenseAmt) && !isNaN(reimbAmt) && reimbAmt > expenseAmt) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Cannot exceed expense amount ($${expenseAmt.toFixed(2)})`,
+        path: ['reimbursed_amount'],
+      })
+    }
+  }
 })
 
 type FormData = z.infer<typeof schema>
@@ -316,6 +331,9 @@ export default function ExpenseFormModal({ expense, onClose }: Props) {
                   {...register('reimbursed_amount')}
                   className={fieldClass}
                 />
+                {errors.reimbursed_amount && (
+                  <p className="text-red-500 text-xs mt-1">{errors.reimbursed_amount.message}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
