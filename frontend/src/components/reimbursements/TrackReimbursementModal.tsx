@@ -50,6 +50,7 @@ export default function TrackReimbursementModal({ onClose }: Props) {
           Select an out-of-pocket expense to start tracking for reimbursement.
         </p>
 
+        <fieldset disabled={mutation.isPending} className="disabled:opacity-60">
         {isLoading ? (
           <p className="text-sm text-slate-400 py-6 text-center">Loading expenses…</p>
         ) : eligible.length === 0 ? (
@@ -88,8 +89,9 @@ export default function TrackReimbursementModal({ onClose }: Props) {
             </div>
           </div>
         )}
+        </fieldset>
 
-        <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+        <div className="flex justify-end gap-3 pt-2 mt-2 border-t border-slate-100">
           <button
             type="button"
             onClick={onClose}

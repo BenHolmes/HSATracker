@@ -85,7 +85,8 @@ export default function ContributionFormModal({ contribution, defaultTaxYear, on
 
   return (
     <Modal title={isEdit ? 'Edit Contribution' : 'Add Contribution'} onClose={onClose}>
-      <form onSubmit={handleSubmit(data => mutation.mutate(data))} className="space-y-4">
+      <form onSubmit={handleSubmit(data => mutation.mutate(data))}>
+        <fieldset disabled={mutation.isPending} className="space-y-4 disabled:opacity-60">
 
         {/* Date + Amount */}
         <div className="grid grid-cols-2 gap-4">
@@ -141,8 +142,10 @@ export default function ContributionFormModal({ contribution, defaultTaxYear, on
           />
         </div>
 
+        </fieldset>
+
         {/* Actions */}
-        <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+        <div className="flex justify-end gap-3 pt-2 mt-4 border-t border-slate-100">
           <button
             type="button"
             onClick={onClose}

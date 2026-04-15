@@ -82,7 +82,8 @@ export default function MarkReimbursedModal({ reimbursement, onClose }: Props) {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(data => mutation.mutate(data))} className="space-y-4">
+        <form onSubmit={handleSubmit(data => mutation.mutate(data))}>
+          <fieldset disabled={mutation.isPending} className="space-y-4 disabled:opacity-60">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -109,7 +110,9 @@ export default function MarkReimbursedModal({ reimbursement, onClose }: Props) {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+          </fieldset>
+
+          <div className="flex justify-end gap-3 pt-2 mt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
