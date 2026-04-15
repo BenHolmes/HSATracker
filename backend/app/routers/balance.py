@@ -1,3 +1,12 @@
+"""
+Account balance snapshot endpoints.
+
+Balances are user-entered snapshots rather than computed values because HSA
+custodians apply investment returns, fees, and interest that the app cannot
+know about. The list endpoint returns all snapshots plus the most recent one
+pre-surfaced for the dashboard card.
+"""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -12,6 +21,7 @@ router = APIRouter()
 
 @router.get("/", response_model=BalanceList)
 async def list_balances(db: AsyncSession = Depends(get_db)):
+    """Return all balance snapshots ordered by date DESC, with the latest pre-extracted."""
     items, latest = await crud.get_balances(db)
     return BalanceList(items=items, latest=latest)
 
@@ -21,6 +31,7 @@ async def create_balance(
     data: BalanceCreate,
     db: AsyncSession = Depends(get_db),
 ):
+    """Record a new balance snapshot."""
     return await crud.create_balance(db, data)
 
 
@@ -29,4 +40,5 @@ async def delete_balance(
     balance_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
+    """Delete a balance snapshot."""
     await crud.delete_balance(db, balance_id)

@@ -1,3 +1,13 @@
+"""
+Reimbursement CRUD endpoints.
+
+A reimbursement record ties an out-of-pocket expense to its repayment
+lifecycle. Key business rules enforced in the CRUD layer:
+  - Only expenses with payment_method='out_of_pocket' may be reimbursed.
+  - Each expense may have at most one reimbursement record.
+  - New records always start with status='pending'.
+"""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -21,6 +31,14 @@ async def list_reimbursements(
     year: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
+    """Return all reimbursements with aggregate totals.
+
+    Optional filters:
+      - status: 'pending' or 'reimbursed'
+      - year: filters by the linked expense's date year
+    Response includes pending_amount and reimbursed_amount_ytd for
+    the summary cards regardless of which filters are applied.
+    """
     items, total, pending_amount, reimbursed_amount_ytd = await crud.get_reimbursements(
         db, status_filter=status, year=year
     )
@@ -37,6 +55,11 @@ async def create_reimbursement(
     data: ReimbursementCreate,
     db: AsyncSession = Depends(get_db),
 ):
+    """Start tracking an out-of-pocket expense for reimbursement.
+
+    Returns 400 if the expense doesn't exist, isn't out-of-pocket,
+    or already has a reimbursement record.
+    """
     return await crud.create_reimbursement(db, data)
 
 
@@ -46,6 +69,11 @@ async def update_reimbursement(
     data: ReimbursementUpdate,
     db: AsyncSession = Depends(get_db),
 ):
+    """Update reimbursement status, amount, date, or notes.
+
+    Typical usage: patch status to 'reimbursed' with reimbursed_date
+    and reimbursed_amount once the HSA custodian has transferred funds.
+    """
     return await crud.update_reimbursement(db, reimbursement_id, data)
 
 
@@ -54,4 +82,5 @@ async def delete_reimbursement(
     reimbursement_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
+    """Remove a reimbursement record. The linked expense is not affected."""
     await crud.delete_reimbursement(db, reimbursement_id)

@@ -30,7 +30,7 @@ class PaymentMethod(str, Enum):
     OUT_OF_POCKET = "out_of_pocket"
     HSA = "hsa"
 
-# not sure about pending language; reimburseable might be more clear
+
 class ReimbursementStatus(str, Enum):
     PENDING = "pending"
     REIMBURSED = "reimbursed"
@@ -43,9 +43,8 @@ class ContributionSource(str, Enum):
 
 
 # IRS HSA contribution limits by tax year: (individual, family)
-#https://dqydj.com/historical-hsa-contribution-limit/
-#Potentially explore a source to pull this data automatically?
-#To-Do: add deductable required and catch-up contributions
+# Source: https://dqydj.com/historical-hsa-contribution-limit/
+# TODO: add minimum deductible required and catch-up contribution amounts (+$1,000 for age 55+)
 CONTRIBUTION_LIMITS: dict[int, tuple[str, str]] = {
     2004: ("2600.00", "5150.00"),
     2005: ("2650.00", "5250.00"),

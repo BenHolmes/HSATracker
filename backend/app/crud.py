@@ -242,7 +242,6 @@ async def create_receipt(
             detail=f"File exceeds maximum size of {max_size_mb}MB",
         )
 
-    # Validate expense exists
     expense = await db.get(Expense, expense_id)
     if expense is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found")
@@ -269,7 +268,6 @@ async def create_receipt(
 
 
 async def get_receipts_for_expense(db: AsyncSession, expense_id: UUID) -> list[Receipt]:
-    # Validate expense exists
     expense = await db.get(Expense, expense_id)
     if expense is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found")

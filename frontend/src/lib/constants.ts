@@ -1,3 +1,11 @@
+/**
+ * Ordered list of HSA-eligible expense categories.
+ *
+ * Mirrors the HsaCategory enum in backend/app/constants.py. The order here
+ * controls how categories appear in dropdowns and filter selects throughout
+ * the UI. Update both files together when adding new categories.
+ */
+
 import type { HsaCategory } from '../types'
 
 export const HSA_CATEGORIES: readonly HsaCategory[] = [

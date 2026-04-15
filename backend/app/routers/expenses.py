@@ -1,3 +1,13 @@
+"""
+Expense CRUD endpoints.
+
+Pagination is handled by fastapi-pagination's paginate() helper, which
+wraps the raw SQLAlchemy Select returned by build_expenses_query().
+HsaPage raises the default page size to 50 and caps it at 1000, allowing
+callers like the Track Reimbursement modal to fetch all OOP expenses in one
+request without bypassing pagination entirely.
+"""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -27,6 +37,11 @@ async def list_expenses(
     payment_method: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
+    """Return a paginated, optionally filtered list of expenses.
+
+    Filters are ANDed together. Results are ordered by date DESC, then
+    created_at DESC so the most recent entry wins on the same date.
+    """
     query = crud.build_expenses_query(
         year=year,
         category=category,
@@ -40,6 +55,7 @@ async def create_expense(
     data: ExpenseCreate,
     db: AsyncSession = Depends(get_db),
 ):
+    """Create a new expense and return it with empty receipts and no reimbursement."""
     return await crud.create_expense(db, data)
 
 
@@ -48,6 +64,7 @@ async def get_expense(
     expense_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
+    """Fetch a single expense with its nested reimbursement and receipts."""
     return await crud.get_expense(db, expense_id)
 
 
@@ -57,6 +74,7 @@ async def update_expense(
     data: ExpenseUpdate,
     db: AsyncSession = Depends(get_db),
 ):
+    """Partially update an expense. Only fields present in the request body are changed."""
     return await crud.update_expense(db, expense_id, data)
 
 
@@ -65,4 +83,5 @@ async def delete_expense(
     expense_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
+    """Delete an expense. Cascades to its reimbursement record and all receipts."""
     await crud.delete_expense(db, expense_id)

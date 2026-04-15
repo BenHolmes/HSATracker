@@ -1,3 +1,14 @@
+"""
+Pydantic request/response schemas for the HSATracker API.
+
+All schemas that are returned from the API use ConfigDict(from_attributes=True)
+so SQLAlchemy ORM objects can be passed directly to Pydantic for serialisation.
+
+Decimal fields (amounts, balances) are serialised by FastAPI as strings to
+preserve precision — never as floats. The frontend always treats money values
+as strings and parses them with parseFloat() only for display.
+"""
+
 from __future__ import annotations
 
 import datetime
@@ -12,13 +23,18 @@ from pydantic import BaseModel, ConfigDict
 # ---------------------------------------------------------------------------
 
 class ReceiptOut(BaseModel):
+    """Read-only receipt metadata returned from the API.
+
+    filename and storage_path are intentionally omitted to avoid leaking
+    the internal file layout. Clients access files via GET /receipts/{id}/file.
+    """
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     expense_id: UUID
     original_filename: str
     mime_type: str
-    file_size: int
+    file_size: int          # bytes
     created_at: datetime.datetime
 
 
@@ -37,11 +53,22 @@ class ReimbursementSummary(BaseModel):
 
 
 class ReimbursementCreate(BaseModel):
+    """Create a reimbursement record for an out-of-pocket expense.
+
+    The backend validates that the linked expense exists and has
+    payment_method='out_of_pocket', and that no reimbursement already exists
+    for it. Status is always initialised to 'pending'.
+    """
     expense_id: UUID
     notes: str | None = None
 
 
 class ReimbursementUpdate(BaseModel):
+    """Partial update for a reimbursement — all fields optional.
+
+    Typical usage: set status='reimbursed' along with reimbursed_date
+    and reimbursed_amount once the HSA custodian has transferred funds.
+    """
     status: str | None = None
     reimbursed_date: datetime.date | None = None
     reimbursed_amount: Decimal | None = None
@@ -63,7 +90,7 @@ class ReimbursementOut(BaseModel):
 
     id: UUID
     expense_id: UUID
-    expense: ExpenseSummary
+    expense: ExpenseSummary  # eagerly loaded — avoids a second round-trip
     status: str
     reimbursed_date: datetime.date | None
     reimbursed_amount: Decimal | None
@@ -73,10 +100,11 @@ class ReimbursementOut(BaseModel):
 
 
 class PaginatedReimbursements(BaseModel):
+    """List response that also surfaces aggregate totals for the UI summary cards."""
     items: list[ReimbursementOut]
     total: int
-    pending_amount: Decimal
-    reimbursed_amount_ytd: Decimal
+    pending_amount: Decimal         # sum of expense.amount for all pending records
+    reimbursed_amount_ytd: Decimal  # sum of reimbursed_amount for all reimbursed records
 
 
 # ---------------------------------------------------------------------------
@@ -88,12 +116,17 @@ class ExpenseCreate(BaseModel):
     provider_name: str
     description: str
     amount: Decimal
-    category: str
-    payment_method: str
+    category: str       # must be a valid HsaCategory value
+    payment_method: str # 'out_of_pocket' or 'hsa'
     notes: str | None = None
 
 
 class ExpenseUpdate(BaseModel):
+    """Partial update — only supplied fields are written.
+
+    Protected fields (id, created_at, updated_at) are excluded from the CRUD
+    allowlist and will be silently ignored even if sent by the client.
+    """
     date: datetime.date | None = None
     provider_name: str | None = None
     description: str | None = None
@@ -104,6 +137,11 @@ class ExpenseUpdate(BaseModel):
 
 
 class ExpenseOut(BaseModel):
+    """Full expense representation returned from the API.
+
+    Includes nested reimbursement (or null) and receipts list so the frontend
+    can render everything without additional round-trips.
+    """
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
@@ -130,10 +168,10 @@ class PaginatedExpenses(BaseModel):
 # ---------------------------------------------------------------------------
 
 class ContributionCreate(BaseModel):
-    date: datetime.date
+    date: datetime.date   # actual deposit date
     amount: Decimal
-    source: str
-    tax_year: int
+    source: str           # 'self', 'employer', or 'other'
+    tax_year: int         # the tax year this deposit counts toward (may differ from date.year)
     notes: str | None = None
 
 
@@ -159,13 +197,19 @@ class ContributionOut(BaseModel):
 
 
 class PaginatedContributions(BaseModel):
+    """Contributions list with IRS annual limits baked in.
+
+    The router looks up limits from CONTRIBUTION_LIMITS (constants.py) and
+    computes remaining headroom so the frontend can render the limit bar
+    without a separate request.
+    """
     items: list[ContributionOut]
     total_contributed: Decimal
     tax_year: int
     limit_individual: Decimal
     limit_family: Decimal
-    remaining_individual: Decimal
-    remaining_family: Decimal
+    remaining_individual: Decimal  # clamped to 0 if over the limit
+    remaining_family: Decimal      # clamped to 0 if over the limit
 
 
 # ---------------------------------------------------------------------------
@@ -173,7 +217,7 @@ class PaginatedContributions(BaseModel):
 # ---------------------------------------------------------------------------
 
 class BalanceCreate(BaseModel):
-    balance: Decimal
+    balance: Decimal     # current account value as shown by the HSA custodian
     as_of_date: datetime.date
     notes: str | None = None
 
@@ -189,8 +233,9 @@ class BalanceOut(BaseModel):
 
 
 class BalanceList(BaseModel):
+    """All balance snapshots plus the most recent one surfaced for quick access."""
     items: list[BalanceOut]
-    latest: BalanceOut | None
+    latest: BalanceOut | None  # None when no snapshots have been recorded yet
 
 
 # ---------------------------------------------------------------------------
@@ -198,16 +243,21 @@ class BalanceList(BaseModel):
 # ---------------------------------------------------------------------------
 
 class SummaryOut(BaseModel):
+    """Aggregated yearly statistics for the dashboard.
+
+    All values are scoped to the requested tax year. Computed in a single
+    crud.get_summary() call to minimise round-trips.
+    """
     year: int
     total_expenses: Decimal
     hsa_paid_expenses: Decimal
     out_of_pocket_expenses: Decimal
-    pending_reimbursement: Decimal
-    reimbursed_ytd: Decimal
+    pending_reimbursement: Decimal  # total awaiting repayment
+    reimbursed_ytd: Decimal         # total already repaid this year
     total_contributed: Decimal
     limit_individual: Decimal
     limit_family: Decimal
     remaining_individual: Decimal
     remaining_family: Decimal
-    latest_balance: Decimal | None
+    latest_balance: Decimal | None       # None until the first balance snapshot is entered
     latest_balance_date: datetime.date | None

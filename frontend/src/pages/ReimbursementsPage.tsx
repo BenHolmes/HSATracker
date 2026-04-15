@@ -47,6 +47,7 @@ export default function ReimbursementsPage() {
   const reimbursedItems = data?.items.filter(r => r.status === 'reimbursed') ?? []
   const activeItems     = tab === 'pending' ? pendingItems : reimbursedItems
 
+  // Reimbursed tab shows 2 extra columns (Amount Reimbursed + Date) that pending doesn't have
   const colSpan = tab === 'reimbursed' ? 7 : 5
 
   const selectClass =
