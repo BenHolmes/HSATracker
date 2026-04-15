@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,6 +60,11 @@ async def download_receipt(
 ):
     receipt = await crud.get_receipt(db, receipt_id)
     file_path = _upload_dir() / receipt.storage_path
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Receipt file not found on disk",
+        )
     return FileResponse(
         path=str(file_path),
         media_type=receipt.mime_type,
