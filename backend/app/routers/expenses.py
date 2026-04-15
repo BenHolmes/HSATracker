@@ -17,6 +17,7 @@ from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.constants import HsaCategory, PaymentMethod
 from app.database import get_db
 from app.schemas import ExpenseCreate, ExpenseOut, ExpenseUpdate
 
@@ -33,19 +34,20 @@ HsaPage = CustomizedPage[
 @router.get("/", response_model=HsaPage[ExpenseOut])
 async def list_expenses(
     year: int | None = Query(None),
-    category: str | None = Query(None),
-    payment_method: str | None = Query(None),
+    category: HsaCategory | None = Query(None),
+    payment_method: PaymentMethod | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
     """Return a paginated, optionally filtered list of expenses.
 
     Filters are ANDed together. Results are ordered by date DESC, then
     created_at DESC so the most recent entry wins on the same date.
+    Invalid enum values for category or payment_method return 422.
     """
     query = crud.build_expenses_query(
         year=year,
-        category=category,
-        payment_method=payment_method,
+        category=category.value if category else None,
+        payment_method=payment_method.value if payment_method else None,
     )
     return await paginate(db, query)
 
@@ -57,6 +59,12 @@ async def create_expense(
 ):
     """Create a new expense and return it with empty receipts and no reimbursement."""
     return await crud.create_expense(db, data)
+
+
+@router.get("/years", response_model=list[int])
+async def list_expense_years(db: AsyncSession = Depends(get_db)):
+    """Return distinct calendar years that appear in the expenses table, newest first."""
+    return await crud.get_expense_years(db)
 
 
 @router.get("/{expense_id}", response_model=ExpenseOut)

@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { deleteBalance, getBalance } from '../api/balance'
-import { deleteContribution, getContributions } from '../api/contributions'
+import { deleteContribution, getContributionYears, getContributions } from '../api/contributions'
 import BalanceFormModal from '../components/balance/BalanceFormModal'
 import ContributionFormModal from '../components/contributions/ContributionFormModal'
 import ContributionLimitBar from '../components/contributions/ContributionLimitBar'
@@ -12,7 +12,6 @@ import { formatCurrency, formatDate, formatLabel } from '../lib/formatters'
 import type { ContributionOut } from '../types'
 
 const CURRENT_YEAR = new Date().getFullYear()
-const YEAR_OPTIONS  = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2]
 
 export default function AccountPage() {
   const queryClient = useQueryClient()
@@ -49,6 +48,12 @@ export default function AccountPage() {
   const [modalOpen, setModalOpen]           = useState(false)
   const [editingContrib, setEditingContrib] = useState<ContributionOut | null>(null)
   const [deletingId, setDeletingId]         = useState<string | null>(null)
+
+  const { data: rawYears } = useQuery({ queryKey: ['contribution-years'], queryFn: getContributionYears })
+  const yearOptions = useMemo(() => {
+    const years = rawYears ?? []
+    return years.includes(CURRENT_YEAR) ? years : [CURRENT_YEAR, ...years]
+  }, [rawYears])
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['contributions', { taxYear }],
@@ -214,7 +219,7 @@ export default function AccountPage() {
               onChange={e => setTaxYear(Number(e.target.value))}
               className={selectClass}
             >
-              {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+              {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
             <button
               onClick={openAdd}

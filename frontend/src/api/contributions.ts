@@ -36,3 +36,9 @@ export async function updateContribution(
 export async function deleteContribution(id: string): Promise<void> {
   await client.delete(`/contributions/${id}`)
 }
+
+/** Fetch distinct tax years present in the contributions table, newest first. */
+export async function getContributionYears(): Promise<number[]> {
+  const { data } = await client.get<number[]>('/contributions/years')
+  return data
+}

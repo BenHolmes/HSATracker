@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { getExpenseYears } from '../api/expenses'
 import { deleteReimbursement, getReimbursements } from '../api/reimbursements'
 import MarkReimbursedModal from '../components/reimbursements/MarkReimbursedModal'
 import TrackReimbursementModal from '../components/reimbursements/TrackReimbursementModal'
@@ -11,7 +12,6 @@ import { formatCurrency, formatDate } from '../lib/formatters'
 import type { ReimbursementOut } from '../types'
 
 const CURRENT_YEAR = new Date().getFullYear()
-const YEAR_OPTIONS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2]
 
 type Tab = 'pending' | 'reimbursed'
 
@@ -23,6 +23,12 @@ export default function ReimbursementsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [markingReimbursement, setMarkingReimbursement] = useState<ReimbursementOut | null>(null)
   const [trackModalOpen, setTrackModalOpen]             = useState(false)
+
+  const { data: rawYears } = useQuery({ queryKey: ['expense-years'], queryFn: getExpenseYears })
+  const yearOptions = useMemo(() => {
+    const years = rawYears ?? []
+    return years.includes(CURRENT_YEAR) ? years : [CURRENT_YEAR, ...years]
+  }, [rawYears])
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['reimbursements', { year }],
@@ -108,7 +114,7 @@ export default function ReimbursementsPage() {
             onChange={e => setYear(Number(e.target.value))}
             className={selectClass}
           >
-            {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           <button
             onClick={() => setTrackModalOpen(true)}

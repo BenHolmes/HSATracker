@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Paperclip, Pencil, Plus, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { deleteExpense, getExpenses } from '../api/expenses'
+import { deleteExpense, getExpenseYears, getExpenses } from '../api/expenses'
 import ExpenseFormModal from '../components/expenses/ExpenseFormModal'
 import Badge from '../components/ui/Badge'
 import { TableSkeleton } from '../components/ui/Skeleton'
@@ -11,8 +11,7 @@ import { formatCurrency, formatDate, formatLabel } from '../lib/formatters'
 import type { ExpenseOut } from '../types'
 
 const CURRENT_YEAR = new Date().getFullYear()
-const YEAR_OPTIONS  = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2]
-const PAGE_SIZE     = 50
+const PAGE_SIZE    = 50
 
 function ReimbursementBadge({ status }: { status?: string | null }) {
   if (!status) return <Badge variant="gray">Not tracked</Badge>
@@ -38,6 +37,13 @@ export default function ExpensesPage() {
 
   // Inline delete confirmation
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const { data: rawYears } = useQuery({ queryKey: ['expense-years'], queryFn: getExpenseYears })
+  // Always include the current year so the filter works even before any data exists
+  const yearOptions = useMemo(() => {
+    const years = rawYears ?? []
+    return years.includes(CURRENT_YEAR) ? years : [CURRENT_YEAR, ...years]
+  }, [rawYears])
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['expenses', { year, category, paymentMethod, page }],
@@ -110,7 +116,7 @@ export default function ExpensesPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-4">
         <select value={year} onChange={e => setYear(Number(e.target.value))} className={selectClass}>
-          {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+          {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
 
         <select value={category} onChange={e => setCategory(e.target.value)} className={selectClass}>

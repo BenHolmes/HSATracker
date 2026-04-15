@@ -44,8 +44,12 @@ export default function BalanceFormModal({ onClose }: Props) {
       toast.success('Balance snapshot added')
       onClose()
     },
-    onError: () => {
-      toast.error('Something went wrong. Please try again.')
+    onError: (err: any) => {
+      if (err?.response?.status === 409) {
+        toast.error('A snapshot already exists for this date')
+      } else {
+        toast.error('Something went wrong. Please try again.')
+      }
     },
   })
 

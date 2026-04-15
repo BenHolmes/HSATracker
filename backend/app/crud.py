@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -93,6 +94,16 @@ async def delete_expense(db: AsyncSession, expense_id: UUID) -> None:
     expense = await get_expense(db, expense_id)
     await db.delete(expense)
     await db.commit()
+
+
+async def get_expense_years(db: AsyncSession) -> list[int]:
+    """Return distinct calendar years that appear in the expenses table, newest first."""
+    result = await db.execute(
+        select(func.extract("year", Expense.date))
+        .distinct()
+        .order_by(func.extract("year", Expense.date).desc())
+    )
+    return [int(row[0]) for row in result.all()]
 
 
 # ---------------------------------------------------------------------------
@@ -376,6 +387,16 @@ async def delete_contribution(db: AsyncSession, contribution_id: UUID) -> None:
     await db.commit()
 
 
+async def get_contribution_years(db: AsyncSession) -> list[int]:
+    """Return distinct tax_year values from the contributions table, newest first."""
+    result = await db.execute(
+        select(Contribution.tax_year)
+        .distinct()
+        .order_by(Contribution.tax_year.desc())
+    )
+    return [row[0] for row in result.all()]
+
+
 # ---------------------------------------------------------------------------
 # Account Balance
 # ---------------------------------------------------------------------------
@@ -399,7 +420,14 @@ async def get_balance(db: AsyncSession, balance_id: UUID) -> AccountBalance:
 async def create_balance(db: AsyncSession, data: BalanceCreate) -> AccountBalance:
     obj = AccountBalance(**data.model_dump())
     db.add(obj)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A balance snapshot already exists for this date",
+        )
     await db.refresh(obj)
     return obj
 
@@ -413,6 +441,23 @@ async def delete_balance(db: AsyncSession, balance_id: UUID) -> None:
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
+
+async def get_summary_years(db: AsyncSession) -> list[int]:
+    """Return all years that have any data (expenses or contributions), newest first.
+
+    Used to populate the dashboard year filter so users can navigate to any
+    year with recorded data regardless of which resource type it came from.
+    """
+    expense_years_result = await db.execute(
+        select(func.extract("year", Expense.date)).distinct()
+    )
+    contribution_years_result = await db.execute(
+        select(Contribution.tax_year).distinct()
+    )
+    years = {int(row[0]) for row in expense_years_result.all()}
+    years |= {row[0] for row in contribution_years_result.all()}
+    return sorted(years, reverse=True)
+
 
 async def get_summary(db: AsyncSession, year: int) -> dict:
     # Expenses

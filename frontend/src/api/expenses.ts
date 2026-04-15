@@ -38,3 +38,9 @@ export async function updateExpense(id: string, body: ExpenseUpdate): Promise<Ex
 export async function deleteExpense(id: string): Promise<void> {
   await client.delete(`/expenses/${id}`)
 }
+
+/** Fetch distinct calendar years that appear in the expenses table, newest first. */
+export async function getExpenseYears(): Promise<number[]> {
+  const { data } = await client.get<number[]>('/expenses/years')
+  return data
+}

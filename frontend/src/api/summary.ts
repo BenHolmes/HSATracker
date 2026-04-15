@@ -14,3 +14,12 @@ export async function getSummary(year?: number): Promise<SummaryOut> {
   })
   return data
 }
+
+/**
+ * Fetch all years that have expense or contribution data, newest first.
+ * Used to populate the dashboard year filter.
+ */
+export async function getSummaryYears(): Promise<number[]> {
+  const { data } = await client.get<number[]>('/summary/years')
+  return data
+}

@@ -15,7 +15,13 @@ import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+
+from app.constants import CONTRIBUTION_LIMITS
+
+# Pre-computed bounds used in tax_year validators below
+_MIN_TAX_YEAR = min(CONTRIBUTION_LIMITS)
+_MAX_TAX_YEAR = max(CONTRIBUTION_LIMITS)
 
 
 # ---------------------------------------------------------------------------
@@ -174,6 +180,16 @@ class ContributionCreate(BaseModel):
     tax_year: int         # the tax year this deposit counts toward (may differ from date.year)
     notes: str | None = None
 
+    @field_validator('tax_year')
+    @classmethod
+    def validate_tax_year(cls, v: int) -> int:
+        """Reject years outside the CONTRIBUTION_LIMITS table to prevent typos."""
+        if v not in CONTRIBUTION_LIMITS:
+            raise ValueError(
+                f'tax_year must be between {_MIN_TAX_YEAR} and {_MAX_TAX_YEAR}'
+            )
+        return v
+
 
 class ContributionUpdate(BaseModel):
     date: datetime.date | None = None
@@ -181,6 +197,16 @@ class ContributionUpdate(BaseModel):
     source: str | None = None
     tax_year: int | None = None
     notes: str | None = None
+
+    @field_validator('tax_year')
+    @classmethod
+    def validate_tax_year(cls, v: int | None) -> int | None:
+        """Reject years outside the CONTRIBUTION_LIMITS table to prevent typos."""
+        if v is not None and v not in CONTRIBUTION_LIMITS:
+            raise ValueError(
+                f'tax_year must be between {_MIN_TAX_YEAR} and {_MAX_TAX_YEAR}'
+            )
+        return v
 
 
 class ContributionOut(BaseModel):

@@ -20,6 +20,16 @@ from app.schemas import SummaryOut
 router = APIRouter()
 
 
+@router.get("/years", response_model=list[int])
+async def list_summary_years(db: AsyncSession = Depends(get_db)):
+    """Return all years that have expense or contribution data, newest first.
+
+    Used to populate the dashboard year filter so users can navigate to any
+    year with recorded data regardless of which resource type it came from.
+    """
+    return await crud.get_summary_years(db)
+
+
 @router.get("/", response_model=SummaryOut)
 async def get_summary(
     year: int = Query(default_factory=lambda: datetime.date.today().year),

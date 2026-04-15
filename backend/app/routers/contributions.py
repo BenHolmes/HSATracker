@@ -61,6 +61,12 @@ async def create_contribution(
     return await crud.create_contribution(db, data)
 
 
+@router.get("/years", response_model=list[int])
+async def list_contribution_years(db: AsyncSession = Depends(get_db)):
+    """Return distinct tax years present in the contributions table, newest first."""
+    return await crud.get_contribution_years(db)
+
+
 @router.patch("/{contribution_id}", response_model=ContributionOut)
 async def update_contribution(
     contribution_id: UUID,

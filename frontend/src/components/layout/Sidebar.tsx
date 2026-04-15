@@ -160,12 +160,6 @@ export default function Sidebar() {
           ))}
         </div>
 
-        {/* Footer */}
-        {!collapsed && (
-          <div className="px-5 py-4 border-t border-slate-700">
-            <p className="text-xs text-slate-500">Self-hosted · All data local</p>
-          </div>
-        )}
       </aside>
     </>
   )

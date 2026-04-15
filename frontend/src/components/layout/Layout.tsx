@@ -10,6 +10,9 @@ export default function Layout() {
         <TopBar />
         <main className="flex-1 overflow-y-auto">
           <Outlet />
+          <footer className="border-t border-slate-200 px-6 py-3 mt-2">
+            <p className="text-xs text-slate-400">Self-hosted · All data local</p>
+          </footer>
         </main>
       </div>
     </div>

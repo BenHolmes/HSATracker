@@ -1,16 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowRight, Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getExpenses } from '../api/expenses'
-import { getSummary } from '../api/summary'
+import { getSummary, getSummaryYears } from '../api/summary'
+import ExpenseFormModal from '../components/expenses/ExpenseFormModal'
 import ContributionLimitBar from '../components/contributions/ContributionLimitBar'
 import Badge from '../components/ui/Badge'
 import { Skeleton, TableSkeleton } from '../components/ui/Skeleton'
 import { formatCurrency, formatDate, formatLabel } from '../lib/formatters'
 
 const CURRENT_YEAR = new Date().getFullYear()
-const YEAR_OPTIONS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2]
 
 function StatCard({
   label,
@@ -38,7 +38,14 @@ function StatCard({
 }
 
 export default function DashboardPage() {
-  const [year, setYear] = useState(CURRENT_YEAR)
+  const [year, setYear]       = useState(CURRENT_YEAR)
+  const [modalOpen, setModalOpen] = useState(false)
+
+  const { data: rawYears } = useQuery({ queryKey: ['summary-years'], queryFn: getSummaryYears })
+  const yearOptions = useMemo(() => {
+    const years = rawYears ?? []
+    return years.includes(CURRENT_YEAR) ? years : [CURRENT_YEAR, ...years]
+  }, [rawYears])
 
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['summary', year],
@@ -58,15 +65,22 @@ export default function DashboardPage() {
   return (
     <div className="p-6 space-y-6">
 
-      {/* Year filter */}
-      <div className="flex justify-end">
+      {/* Year filter + Add Expense */}
+      <div className="flex items-center justify-between">
         <select
           value={year}
           onChange={e => setYear(Number(e.target.value))}
           className={selectClass}
         >
-          {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+          {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
+        <button
+          onClick={() => setModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Add Expense
+        </button>
       </div>
 
       {/* Row 1 — Balance + expenses overview */}
@@ -180,6 +194,10 @@ export default function DashboardPage() {
           </table>
         </div>
       </div>
+
+      {modalOpen && (
+        <ExpenseFormModal onClose={() => setModalOpen(false)} />
+      )}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { createContribution, updateContribution } from '../../api/contributions'
+import { CONTRIBUTION_TAX_YEARS } from '../../lib/constants'
 import { formatLabel } from '../../lib/formatters'
 import type { ContributionOut, ContributionSource } from '../../types'
 import Modal from '../ui/Modal'
@@ -11,7 +12,9 @@ import Modal from '../ui/Modal'
 const SOURCES: ContributionSource[] = ['self', 'employer', 'other']
 
 const CURRENT_YEAR = new Date().getFullYear()
-const YEAR_OPTIONS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2]
+
+const MIN_TAX_YEAR = CONTRIBUTION_TAX_YEARS[CONTRIBUTION_TAX_YEARS.length - 1]
+const MAX_TAX_YEAR = CONTRIBUTION_TAX_YEARS[0]
 
 const schema = z.object({
   date:     z.string().min(1, 'Date is required'),
@@ -20,7 +23,10 @@ const schema = z.object({
     { message: 'Amount must be greater than 0' },
   ),
   source:   z.enum(['self', 'employer', 'other']),
-  tax_year: z.number().int().min(2000),
+  tax_year: z.number().int().refine(
+    y => (CONTRIBUTION_TAX_YEARS as readonly number[]).includes(y),
+    { message: `Tax year must be between ${MIN_TAX_YEAR} and ${MAX_TAX_YEAR}` },
+  ),
   notes:    z.string().optional(),
 })
 
@@ -115,7 +121,7 @@ export default function ContributionFormModal({ contribution, defaultTaxYear, on
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Tax Year</label>
             <select {...register('tax_year', { valueAsNumber: true })} className={fieldClass}>
-              {YEAR_OPTIONS.map(y => (
+              {CONTRIBUTION_TAX_YEARS.map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
