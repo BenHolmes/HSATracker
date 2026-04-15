@@ -251,7 +251,8 @@ async def create_receipt(
     storage_path = filename
 
     upload_dir.mkdir(parents=True, exist_ok=True)
-    (upload_dir / filename).write_bytes(content)
+    file_path = upload_dir / filename
+    file_path.write_bytes(content)
 
     receipt = Receipt(
         expense_id=expense_id,
@@ -262,7 +263,21 @@ async def create_receipt(
         storage_path=storage_path,
     )
     db.add(receipt)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        # DB commit failed — remove the file we just wrote so disk and DB
+        # stay in sync. Without this, the file would be permanently orphaned
+        # (no DB record to reference it, so it can never be cleaned up).
+        await db.rollback()
+        try:
+            file_path.unlink()
+        except FileNotFoundError:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save receipt record",
+        )
     await db.refresh(receipt)
     return receipt
 
