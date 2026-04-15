@@ -202,6 +202,14 @@ _MIME_TO_EXT = {
     "application/pdf": ".pdf",
 }
 
+# Magic bytes for server-side file type verification.
+# Rejects files where Content-Type doesn't match actual content.
+_MAGIC_BYTES: dict[str, bytes] = {
+    "image/jpeg": b"\xff\xd8\xff",
+    "image/png": b"\x89PNG\r\n\x1a\n",
+    "application/pdf": b"%PDF",
+}
+
 
 async def create_receipt(
     db: AsyncSession,
@@ -217,6 +225,16 @@ async def create_receipt(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported file type '{mime_type}'. Allowed: jpeg, png, pdf",
         )
+
+    # Verify actual file content matches declared MIME type.
+    # Prevents Content-Type spoofing (e.g. uploading an EXE labelled as image/jpeg).
+    expected_magic = _MAGIC_BYTES.get(mime_type)
+    if expected_magic and not content.startswith(expected_magic):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File content does not match the declared file type",
+        )
+
     max_bytes = max_size_mb * 1024 * 1024
     if len(content) > max_bytes:
         raise HTTPException(
