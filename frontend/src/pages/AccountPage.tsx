@@ -7,6 +7,7 @@ import { deleteContribution, getContributions } from '../api/contributions'
 import BalanceFormModal from '../components/balance/BalanceFormModal'
 import ContributionFormModal from '../components/contributions/ContributionFormModal'
 import ContributionLimitBar from '../components/contributions/ContributionLimitBar'
+import { Skeleton, TableSkeleton } from '../components/ui/Skeleton'
 import { formatCurrency, formatDate, formatLabel } from '../lib/formatters'
 import type { ContributionOut } from '../types'
 
@@ -94,7 +95,12 @@ export default function AccountPage() {
         </div>
 
         {/* Latest balance card */}
-        {!balanceLoading && !balanceError && balanceData?.latest && (
+        {balanceLoading ? (
+          <div className="bg-white rounded-xl border border-slate-200 px-5 py-4">
+            <Skeleton className="h-3 w-28 mb-3" />
+            <Skeleton className="h-9 w-36" />
+          </div>
+        ) : !balanceError && balanceData?.latest ? (
           <div className="bg-white rounded-xl border border-slate-200 px-5 py-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
@@ -111,7 +117,7 @@ export default function AccountPage() {
               As of {formatDate(balanceData.latest.as_of_date)}
             </p>
           </div>
-        )}
+        ) : null}
 
         {/* Balance history table */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
@@ -126,11 +132,7 @@ export default function AccountPage() {
             </thead>
             <tbody>
               {balanceLoading ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-12 text-center text-slate-400">
-                    Loading balance history…
-                  </td>
-                </tr>
+                <TableSkeleton rows={3} cols={4} />
               ) : balanceError ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-12 text-center text-red-500">
@@ -248,11 +250,7 @@ export default function AccountPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-slate-400">
-                    Loading contributions…
-                  </td>
-                </tr>
+                <TableSkeleton rows={3} cols={6} />
               ) : isError ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-red-500">

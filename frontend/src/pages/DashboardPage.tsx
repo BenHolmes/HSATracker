@@ -6,6 +6,7 @@ import { getExpenses } from '../api/expenses'
 import { getSummary } from '../api/summary'
 import ContributionLimitBar from '../components/contributions/ContributionLimitBar'
 import Badge from '../components/ui/Badge'
+import { Skeleton, TableSkeleton } from '../components/ui/Skeleton'
 import { formatCurrency, formatDate, formatLabel } from '../lib/formatters'
 
 const CURRENT_YEAR = new Date().getFullYear()
@@ -16,17 +17,22 @@ function StatCard({
   value,
   sub,
   accent = 'text-slate-900',
+  loading = false,
 }: {
-  label:   string
-  value:   string
-  sub?:    string
-  accent?: string
+  label:    string
+  value:    string
+  sub?:     string
+  accent?:  string
+  loading?: boolean
 }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 px-5 py-4">
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{label}</p>
-      <p className={`text-2xl font-bold truncate ${accent}`}>{value}</p>
-      {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+      {loading
+        ? <Skeleton className="h-8 w-28 mt-1" />
+        : <p className={`text-2xl font-bold truncate ${accent}`}>{value}</p>
+      }
+      {!loading && sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
     </div>
   )
 }
@@ -34,18 +40,17 @@ function StatCard({
 export default function DashboardPage() {
   const [year, setYear] = useState(CURRENT_YEAR)
 
-  const { data: summary, isLoading } = useQuery({
+  const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['summary', year],
     queryFn:  () => getSummary(year),
   })
 
-  const { data: recent } = useQuery({
+  const { data: recent, isLoading: recentLoading } = useQuery({
     queryKey: ['expenses', { year, size: 5, page: 1 }],
     queryFn:  () => getExpenses({ year, size: 5, page: 1 }),
   })
 
-  const dash = (val?: string) =>
-    isLoading ? '—' : formatCurrency(val ?? '0')
+  const fmt = (val?: string) => formatCurrency(val ?? '0')
 
   const selectClass =
     'border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent'
@@ -68,45 +73,39 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="HSA Balance"
-          value={
-            isLoading
-              ? '—'
-              : summary?.latest_balance
-                ? formatCurrency(summary.latest_balance)
-                : 'No data'
-          }
-          sub={
-            summary?.latest_balance_date
-              ? `As of ${formatDate(summary.latest_balance_date)}`
-              : undefined
-          }
+          loading={summaryLoading}
+          value={summary?.latest_balance ? formatCurrency(summary.latest_balance) : 'No data'}
+          sub={summary?.latest_balance_date ? `As of ${formatDate(summary.latest_balance_date)}` : undefined}
           accent="text-emerald-600"
         />
-        <StatCard label="Total Expenses"  value={dash(summary?.total_expenses)} />
-        <StatCard label="Out of Pocket"   value={dash(summary?.out_of_pocket_expenses)} />
-        <StatCard label="HSA Paid"        value={dash(summary?.hsa_paid_expenses)} />
+        <StatCard label="Total Expenses"  loading={summaryLoading} value={fmt(summary?.total_expenses)} />
+        <StatCard label="Out of Pocket"   loading={summaryLoading} value={fmt(summary?.out_of_pocket_expenses)} />
+        <StatCard label="HSA Paid"        loading={summaryLoading} value={fmt(summary?.hsa_paid_expenses)} />
       </div>
 
       {/* Row 2 — Reimbursement + contributions */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           label="Pending Reimbursement"
-          value={dash(summary?.pending_reimbursement)}
+          loading={summaryLoading}
+          value={fmt(summary?.pending_reimbursement)}
           accent="text-amber-600"
         />
         <StatCard
           label="Reimbursed YTD"
-          value={dash(summary?.reimbursed_ytd)}
+          loading={summaryLoading}
+          value={fmt(summary?.reimbursed_ytd)}
           accent="text-emerald-600"
         />
         <StatCard
           label="Total Contributed"
-          value={dash(summary?.total_contributed)}
+          loading={summaryLoading}
+          value={fmt(summary?.total_contributed)}
         />
       </div>
 
       {/* Contribution limit bar */}
-      {!isLoading && summary && (
+      {!summaryLoading && summary && (
         <ContributionLimitBar
           totalContributed={summary.total_contributed}
           limitIndividual={summary.limit_individual}
@@ -140,7 +139,9 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {!recent || recent.items.length === 0 ? (
+              {recentLoading ? (
+                <TableSkeleton rows={3} cols={5} />
+              ) : !recent || recent.items.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
                     No expenses for {year}.{' '}

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { deleteExpense, getExpenses } from '../api/expenses'
 import ExpenseFormModal from '../components/expenses/ExpenseFormModal'
 import Badge from '../components/ui/Badge'
+import { TableSkeleton } from '../components/ui/Skeleton'
 import { HSA_CATEGORIES } from '../lib/constants'
 import { formatCurrency, formatDate, formatLabel } from '../lib/formatters'
 import type { ExpenseOut } from '../types'
@@ -144,11 +145,7 @@ export default function ExpensesPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr>
-                <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
-                  Loading expenses…
-                </td>
-              </tr>
+              <TableSkeleton rows={8} cols={9} />
             ) : isError ? (
               <tr>
                 <td colSpan={9} className="px-4 py-12 text-center text-red-500">

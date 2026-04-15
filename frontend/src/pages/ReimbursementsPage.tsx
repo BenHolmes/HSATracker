@@ -6,6 +6,7 @@ import { deleteReimbursement, getReimbursements } from '../api/reimbursements'
 import MarkReimbursedModal from '../components/reimbursements/MarkReimbursedModal'
 import TrackReimbursementModal from '../components/reimbursements/TrackReimbursementModal'
 import Badge from '../components/ui/Badge'
+import { Skeleton, TableSkeleton } from '../components/ui/Skeleton'
 import { formatCurrency, formatDate } from '../lib/formatters'
 import type { ReimbursementOut } from '../types'
 
@@ -69,17 +70,19 @@ export default function ReimbursementsPage() {
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
             Pending
           </p>
-          <p className="text-2xl font-bold text-slate-900">
-            {isLoading ? '—' : formatCurrency(data?.pending_amount ?? '0')}
-          </p>
+          {isLoading
+            ? <Skeleton className="h-8 w-28 mt-1" />
+            : <p className="text-2xl font-bold text-slate-900">{formatCurrency(data?.pending_amount ?? '0')}</p>
+          }
         </div>
         <div className="bg-white rounded-xl border border-slate-200 px-5 py-4">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
             Reimbursed YTD
           </p>
-          <p className="text-2xl font-bold text-emerald-600">
-            {isLoading ? '—' : formatCurrency(data?.reimbursed_amount_ytd ?? '0')}
-          </p>
+          {isLoading
+            ? <Skeleton className="h-8 w-28 mt-1" />
+            : <p className="text-2xl font-bold text-emerald-600">{formatCurrency(data?.reimbursed_amount_ytd ?? '0')}</p>
+          }
         </div>
       </div>
 
@@ -137,11 +140,7 @@ export default function ReimbursementsPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr>
-                <td colSpan={colSpan} className="px-4 py-12 text-center text-slate-400">
-                  Loading…
-                </td>
-              </tr>
+              <TableSkeleton rows={5} cols={colSpan} />
             ) : isError ? (
               <tr>
                 <td colSpan={colSpan} className="px-4 py-12 text-center text-red-500">
