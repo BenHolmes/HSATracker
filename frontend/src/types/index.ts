@@ -125,6 +125,8 @@ export interface ReimbursementOut {
 export interface PaginatedReimbursements {
   items: ReimbursementOut[]
   total: number
+  page: number
+  pages: number
   pending_amount: string
   reimbursed_amount_ytd: string
 }

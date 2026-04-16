@@ -114,29 +114,58 @@ async def get_reimbursements(
     db: AsyncSession,
     status_filter: str | None = None,
     year: int | None = None,
+    page: int = 1,
+    size: int = 200,
 ) -> tuple[list[Reimbursement], int, Decimal, Decimal]:
+    # --- Aggregate totals via SQL (always full-year, never status-filtered) ---
+    # The summary cards must reflect ALL records for the year regardless of which
+    # page or status tab is active. Running these as SQL aggregates avoids
+    # loading every row into Python memory just to sum one column.
+
+    pending_q = (
+        select(func.coalesce(func.sum(Expense.amount), 0))
+        .join(Reimbursement, Reimbursement.expense_id == Expense.id)
+        .where(Reimbursement.status == "pending")
+    )
+    if year is not None:
+        pending_q = pending_q.where(func.extract("year", Expense.date) == year)
+    pending_amount = Decimal(str((await db.execute(pending_q)).scalar_one()))
+
+    reimbursed_q = (
+        select(func.coalesce(func.sum(Reimbursement.reimbursed_amount), 0))
+        .join(Expense, Reimbursement.expense_id == Expense.id)
+        .where(Reimbursement.status == "reimbursed")
+    )
+    if year is not None:
+        reimbursed_q = reimbursed_q.where(func.extract("year", Expense.date) == year)
+    reimbursed_amount_ytd = Decimal(str((await db.execute(reimbursed_q)).scalar_one()))
+
+    # --- Total count (for pagination metadata) ---
+    count_q = select(func.count(Reimbursement.id))
+    if status_filter is not None:
+        count_q = count_q.where(Reimbursement.status == status_filter)
+    if year is not None:
+        count_q = (
+            count_q
+            .join(Expense, Reimbursement.expense_id == Expense.id)
+            .where(func.extract("year", Expense.date) == year)
+        )
+    total = (await db.execute(count_q)).scalar_one()
+
+    # --- Paginated items ---
     query = (
         select(Reimbursement)
         .options(selectinload(Reimbursement.expense))
         .order_by(Reimbursement.created_at.desc())
     )
-
     if status_filter is not None:
         query = query.where(Reimbursement.status == status_filter)
     if year is not None:
-        query = query.join(Expense).where(func.extract("year", Expense.date) == year)
+        query = query.join(Expense, Reimbursement.expense_id == Expense.id).where(
+            func.extract("year", Expense.date) == year
+        )
 
-    items = (await db.execute(query)).scalars().all()
-    total = len(items)
-
-    pending_amount = sum(
-        (r.expense.amount for r in items if r.status == "pending"),
-        Decimal("0.00"),
-    )
-    reimbursed_amount_ytd = sum(
-        (r.reimbursed_amount for r in items if r.status == "reimbursed" and r.reimbursed_amount),
-        Decimal("0.00"),
-    )
+    items = (await db.execute(query.offset((page - 1) * size).limit(size))).scalars().all()
 
     return list(items), total, pending_amount, reimbursed_amount_ytd
 
@@ -460,50 +489,50 @@ async def get_summary_years(db: AsyncSession) -> list[int]:
 
 
 async def get_summary(db: AsyncSession, year: int) -> dict:
-    # Expenses
-    expenses_result = await db.execute(
-        select(Expense).where(func.extract("year", Expense.date) == year)
-    )
-    expenses = list(expenses_result.scalars().all())
+    """Compute all dashboard aggregates via SQL — no rows loaded into Python."""
+    year_filter = func.extract("year", Expense.date) == year
 
-    total_expenses = sum((e.amount for e in expenses), Decimal("0.00"))
-    hsa_paid = sum((e.amount for e in expenses if e.payment_method == "hsa"), Decimal("0.00"))
-    out_of_pocket = sum(
-        (e.amount for e in expenses if e.payment_method == "out_of_pocket"), Decimal("0.00")
-    )
+    # --- Expense aggregates ---
+    total_expenses = Decimal(str((await db.execute(
+        select(func.coalesce(func.sum(Expense.amount), 0)).where(year_filter)
+    )).scalar_one()))
 
-    # Reimbursements (for expenses in this year)
-    expense_ids = [e.id for e in expenses]
-    pending_amount = Decimal("0.00")
-    reimbursed_ytd = Decimal("0.00")
-    if expense_ids:
-        reimb_result = await db.execute(
-            select(Reimbursement).where(Reimbursement.expense_id.in_(expense_ids))
-        )
-        reimbursements = list(reimb_result.scalars().all())
-        expense_map = {e.id: e for e in expenses}
-        pending_amount = sum(
-            (expense_map[r.expense_id].amount for r in reimbursements if r.status == "pending"),
-            Decimal("0.00"),
-        )
-        reimbursed_ytd = sum(
-            (r.reimbursed_amount for r in reimbursements
-             if r.status == "reimbursed" and r.reimbursed_amount),
-            Decimal("0.00"),
-        )
+    hsa_paid = Decimal(str((await db.execute(
+        select(func.coalesce(func.sum(Expense.amount), 0))
+        .where(year_filter, Expense.payment_method == "hsa")
+    )).scalar_one()))
 
-    # Contributions
-    contrib_result = await db.execute(
-        select(Contribution).where(Contribution.tax_year == year)
-    )
-    contributions = list(contrib_result.scalars().all())
-    total_contributed = sum((c.amount for c in contributions), Decimal("0.00"))
+    out_of_pocket = Decimal(str((await db.execute(
+        select(func.coalesce(func.sum(Expense.amount), 0))
+        .where(year_filter, Expense.payment_method == "out_of_pocket")
+    )).scalar_one()))
+
+    # --- Reimbursement aggregates (joined to expenses for year scoping) ---
+    # pending_amount: sum of the *expense* amount for records awaiting repayment
+    pending_amount = Decimal(str((await db.execute(
+        select(func.coalesce(func.sum(Expense.amount), 0))
+        .join(Reimbursement, Reimbursement.expense_id == Expense.id)
+        .where(year_filter, Reimbursement.status == "pending")
+    )).scalar_one()))
+
+    # reimbursed_ytd: sum of what was *actually* reimbursed (may be partial)
+    reimbursed_ytd = Decimal(str((await db.execute(
+        select(func.coalesce(func.sum(Reimbursement.reimbursed_amount), 0))
+        .join(Expense, Reimbursement.expense_id == Expense.id)
+        .where(year_filter, Reimbursement.status == "reimbursed")
+    )).scalar_one()))
+
+    # --- Contribution aggregate ---
+    total_contributed = Decimal(str((await db.execute(
+        select(func.coalesce(func.sum(Contribution.amount), 0))
+        .where(Contribution.tax_year == year)
+    )).scalar_one()))
 
     limits = CONTRIBUTION_LIMITS.get(year, CONTRIBUTION_LIMITS[max(CONTRIBUTION_LIMITS)])
     limit_individual = Decimal(limits[0])
     limit_family = Decimal(limits[1])
 
-    # Latest balance
+    # --- Latest balance snapshot (already a single-row query) ---
     balance_result = await db.execute(
         select(AccountBalance).order_by(AccountBalance.as_of_date.desc()).limit(1)
     )

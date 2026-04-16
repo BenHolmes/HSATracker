@@ -17,7 +17,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from app.constants import CONTRIBUTION_LIMITS, HsaCategory, PaymentMethod, ReimbursementStatus
+from app.constants import (
+    CONTRIBUTION_LIMITS,
+    ContributionSource,
+    HsaCategory,
+    PaymentMethod,
+    ReimbursementStatus,
+)
 
 # Pre-computed bounds used in tax_year validators below
 _MIN_TAX_YEAR = min(CONTRIBUTION_LIMITS)
@@ -106,11 +112,18 @@ class ReimbursementOut(BaseModel):
 
 
 class PaginatedReimbursements(BaseModel):
-    """List response that also surfaces aggregate totals for the UI summary cards."""
+    """List response that also surfaces aggregate totals for the UI summary cards.
+
+    Totals (pending_amount, reimbursed_amount_ytd) always reflect the full
+    filtered result set regardless of which page is requested, so the summary
+    cards stay accurate across all pages.
+    """
     items: list[ReimbursementOut]
     total: int
-    pending_amount: Decimal         # sum of expense.amount for all pending records
-    reimbursed_amount_ytd: Decimal  # sum of reimbursed_amount for all reimbursed records
+    page: int
+    pages: int
+    pending_amount: Decimal         # sum of expense.amount for ALL pending records in filter
+    reimbursed_amount_ytd: Decimal  # sum of reimbursed_amount for ALL reimbursed records in filter
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +189,7 @@ class PaginatedExpenses(BaseModel):
 class ContributionCreate(BaseModel):
     date: datetime.date   # actual deposit date
     amount: Decimal
-    source: str           # 'self', 'employer', or 'other'
+    source: ContributionSource
     tax_year: int         # the tax year this deposit counts toward (may differ from date.year)
     notes: str | None = None
 
@@ -194,7 +207,7 @@ class ContributionCreate(BaseModel):
 class ContributionUpdate(BaseModel):
     date: datetime.date | None = None
     amount: Decimal | None = None
-    source: str | None = None
+    source: ContributionSource | None = None
     tax_year: int | None = None
     notes: str | None = None
 

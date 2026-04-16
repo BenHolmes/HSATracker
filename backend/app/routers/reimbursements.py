@@ -29,22 +29,28 @@ router = APIRouter()
 async def list_reimbursements(
     status: str | None = Query(None),
     year: int | None = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(200, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return all reimbursements with aggregate totals.
+    """Return reimbursements with aggregate totals and pagination.
 
     Optional filters:
       - status: 'pending' or 'reimbursed'
       - year: filters by the linked expense's date year
-    Response includes pending_amount and reimbursed_amount_ytd for
-    the summary cards regardless of which filters are applied.
+    The summary-card totals (pending_amount, reimbursed_amount_ytd) always
+    reflect the full filtered set regardless of which page is requested.
+    Default page size of 200 covers a full year of records in one request.
     """
     items, total, pending_amount, reimbursed_amount_ytd = await crud.get_reimbursements(
-        db, status_filter=status, year=year
+        db, status_filter=status, year=year, page=page, size=size
     )
+    pages = max(1, -(total // -size))  # ceiling division without importing math
     return PaginatedReimbursements(
         items=items,
         total=total,
+        page=page,
+        pages=pages,
         pending_amount=pending_amount,
         reimbursed_amount_ytd=reimbursed_amount_ytd,
     )
