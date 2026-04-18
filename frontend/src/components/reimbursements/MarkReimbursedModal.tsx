@@ -8,9 +8,9 @@ import { formatCurrency, formatDate } from '../../lib/formatters'
 import type { ReimbursementOut } from '../../types'
 import Modal from '../ui/Modal'
 
-type FormData = {
+type FormValues = {
   reimbursed_amount: string
-  reimbursed_date: string
+  reimbursed_date?: string
 }
 
 interface Props {
@@ -32,7 +32,7 @@ export default function MarkReimbursedModal({ reimbursement, onClose }: Props) {
     reimbursed_date: z.string().optional(),
   })
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       reimbursed_amount: reimbursement.reimbursed_amount ?? '',
@@ -41,7 +41,7 @@ export default function MarkReimbursedModal({ reimbursement, onClose }: Props) {
   })
 
   const mutation = useMutation({
-    mutationFn: (data: FormData) =>
+    mutationFn: (data: FormValues) =>
       updateReimbursement(reimbursement.id, {
         status:            'reimbursed',
         reimbursed_amount: data.reimbursed_amount || undefined,
