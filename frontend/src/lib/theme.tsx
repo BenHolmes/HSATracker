@@ -1,7 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Moon, Sun } from 'lucide-react'
 import { createContext, useContext, useEffect, useState } from 'react'
-import { updateSettings } from '../api/settings'
 
 export type Theme = 'light' | 'dark' | 'system'
 
@@ -81,36 +79,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-// Rendered inside QueryClientProvider (in App.tsx). On first settings load,
-// syncs the DB theme value into the ThemeProvider so a fresh browser matches
-// the last-saved preference even if localStorage was cleared.
-export function ThemeSync() {
-  // We can't use useQuery here because ThemeSync is inside QueryClientProvider
-  // but we need to avoid importing TanStack Query at the top level of this lib.
-  // Instead, App.tsx passes the resolved theme down via this component.
-  return null
-}
-
-// Simple light ↔ dark toggle. Persists to both localStorage and the backend.
+// Top-bar quick toggle — localStorage only, no backend write.
+// Flips between light and dark for the current session without changing
+// the saved default in Settings → Preferences → Appearance.
 export function ThemeToggle({ className = '' }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme()
-  const queryClient = useQueryClient()
   const isDark = resolvedTheme === 'dark'
-
-  const mutation = useMutation({
-    mutationFn: (t: Theme) => updateSettings({ theme: t }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings'] }),
-  })
-
-  const handleToggle = () => {
-    const next: Theme = isDark ? 'light' : 'dark'
-    setTheme(next)
-    mutation.mutate(next)
-  }
-
   return (
     <button
-      onClick={handleToggle}
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       className={`p-1.5 rounded transition-colors ${className}`}
