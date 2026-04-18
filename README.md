@@ -98,21 +98,46 @@ docker exec -i hsatracker-db-1 psql -U hsatracker hsatracker < backup.sql
 
 ---
 
-## Development
+## Running the app
+
+### Production
+
+Builds the frontend into static files and serves everything through Nginx.
+The backend is internal-only — not exposed on the host.
 
 ```bash
-# Start the database and backend
-cp .env.example .env
-docker compose up db backend --build -d
+cp .env.example .env          # copy and edit — set a strong POSTGRES_PASSWORD
+docker compose up --build -d
+open http://localhost:3000
+```
 
-# Start the frontend dev server (hot reload)
+Migrations run automatically on startup.
+
+---
+
+### Development (hot reload)
+
+The frontend Vite dev server runs on the host for instant HMR while the
+backend and database run in Docker. The full stack must be running first
+because the Vite dev proxy routes `/api` through Nginx on port 3000, which
+forwards requests to the backend container internally.
+
+```bash
+# 1. Start the full Docker stack (database + backend + Nginx)
+cp .env.example .env
+docker compose up --build -d
+
+# 2. In a second terminal, start the Vite dev server
 cd frontend
 npm install
 npm run dev
-# → http://localhost:5173
+# → http://localhost:5173  (hot reload)
+# API calls are proxied to http://localhost:3000 → Nginx → backend
 ```
 
-The Vite dev server proxies `/api` to `http://localhost:8000`, so the frontend talks to the Docker backend directly.
+> **Why the full stack?** The backend is not exposed on the host in
+> production mode, so the Vite proxy reaches it through the Nginx container
+> rather than directly. This keeps dev and production routing identical.
 
 ---
 
