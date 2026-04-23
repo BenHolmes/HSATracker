@@ -83,6 +83,20 @@ async def create_expense(db: AsyncSession, data: ExpenseCreate) -> Expense:
 
 async def update_expense(db: AsyncSession, expense_id: UUID, data: ExpenseUpdate) -> Expense:
     expense = await get_expense(db, expense_id)
+
+    # Guard: reject amount reductions that would leave reimbursed_amount > new amount
+    if data.amount is not None:
+        reimb = expense.reimbursement
+        if reimb is not None and reimb.reimbursed_amount is not None:
+            if reimb.reimbursed_amount > data.amount:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Cannot reduce expense amount to ${data.amount:.2f} — "
+                        f"a reimbursement of ${reimb.reimbursed_amount:.2f} has already been recorded."
+                    ),
+                )
+
     for field, value in data.model_dump(exclude_unset=True).items():
         if field in _EXPENSE_MUTABLE:
             setattr(expense, field, value)
