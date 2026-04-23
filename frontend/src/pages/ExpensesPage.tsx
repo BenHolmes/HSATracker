@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Paperclip, Pencil, Plus, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { ChevronDown, ChevronLeft, ChevronRight, Download, FileText, Paperclip, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { deleteExpense, getExpenseYears, getExpenses } from '../api/expenses'
+import { downloadExpensesCsv, downloadFullZip } from '../api/export'
 import ExpenseFormModal from '../components/expenses/ExpenseFormModal'
 import Badge from '../components/ui/Badge'
 import { TableSkeleton } from '../components/ui/Skeleton'
@@ -37,6 +38,22 @@ export default function ExpensesPage() {
 
   // Inline delete confirmation
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // Export dropdown
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
+
+  // Close export dropdown on outside click
+  useEffect(() => {
+    if (!exportOpen) return
+    function handleOutside(e: MouseEvent) {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [exportOpen])
 
   const { data: rawYears } = useQuery({ queryKey: ['expense-years'], queryFn: getExpenseYears })
   // Always include the current year so the filter works even before any data exists
@@ -104,13 +121,52 @@ export default function ExpensesPage() {
             ? 'Loading…'
             : `${totalItems} expense${totalItems !== 1 ? 's' : ''}`}
         </p>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Expense
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Export dropdown */}
+          <div className="relative" ref={exportRef}>
+            <button
+              onClick={() => setExportOpen(o => !o)}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Export
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+            {exportOpen && (
+              <div className="absolute right-0 mt-1.5 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                <button
+                  onClick={() => { downloadExpensesCsv(year); setExportOpen(false) }}
+                  className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left"
+                >
+                  <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
+                  <div>
+                    <div className="font-medium">Transactions CSV</div>
+                    <div className="text-xs text-slate-400 dark:text-slate-500">{year} expenses only</div>
+                  </div>
+                </button>
+                <div className="border-t border-slate-100 dark:border-slate-700" />
+                <button
+                  onClick={() => { downloadFullZip(year); setExportOpen(false) }}
+                  className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left"
+                >
+                  <Download className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
+                  <div>
+                    <div className="font-medium">Full Export (.zip)</div>
+                    <div className="text-xs text-slate-400 dark:text-slate-500">{year} CSV + receipts</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Expense
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

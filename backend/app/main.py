@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_pagination import add_pagination
 
-from app.routers import balance, contributions, expenses, reimbursements, settings, summary
+from app.routers import balance, contributions, expenses, export, reimbursements, settings, summary
 from app.routers.receipts import expense_router as receipts_expense_router
 from app.routers.receipts import receipts_router
 
@@ -45,6 +45,7 @@ app.include_router(contributions.router,  prefix="/api/v1/contributions",   tags
 app.include_router(balance.router,        prefix="/api/v1/balance",         tags=["balance"])
 app.include_router(summary.router,        prefix="/api/v1/summary",         tags=["summary"])
 app.include_router(settings.router,       prefix="/api/v1/settings",        tags=["settings"])
+app.include_router(export.router,         prefix="/api/v1/export",           tags=["export"])
 # Receipt endpoints split across two prefixes (see module docstring above)
 app.include_router(receipts_expense_router, prefix="/api/v1/expenses", tags=["receipts"])
 app.include_router(receipts_router,         prefix="/api/v1/receipts", tags=["receipts"])
