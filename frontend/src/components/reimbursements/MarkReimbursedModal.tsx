@@ -23,13 +23,17 @@ export default function MarkReimbursedModal({ reimbursement, onClose }: Props) {
 
   // Schema is defined inside the component so it can reference the expense
   // amount from props and provide a precise validation message.
+  const today = new Date().toISOString().slice(0, 10)
   const expenseAmount = parseFloat(reimbursement.expense.amount)
   const schema = z.object({
     reimbursed_amount: z.string().refine(
       val => !val || (parseFloat(val) > 0 && parseFloat(val) <= expenseAmount),
       { message: `Must be between $0.01 and ${formatCurrency(reimbursement.expense.amount)}` },
     ),
-    reimbursed_date: z.string().optional(),
+    reimbursed_date: z.string().optional().refine(
+      val => !val || val <= today,
+      { message: 'Reimbursement date cannot be in the future' },
+    ),
   })
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
@@ -107,7 +111,10 @@ export default function MarkReimbursedModal({ reimbursement, onClose }: Props) {
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Reimbursement Date
               </label>
-              <input type="date" {...register('reimbursed_date')} className={fieldClass} />
+              <input type="date" max={today} {...register('reimbursed_date')} className={fieldClass} />
+              {errors.reimbursed_date && (
+                <p className="text-red-500 text-xs mt-1">{errors.reimbursed_date.message}</p>
+              )}
             </div>
           </div>
 

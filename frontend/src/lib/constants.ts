@@ -20,6 +20,20 @@ export const CONTRIBUTION_TAX_YEARS: readonly number[] = [
   2006, 2005, 2004,
 ]
 
+/**
+ * MIME types accepted for receipt uploads.
+ * Mirrors ALLOWED_RECEIPT_MIME_TYPES in backend/app/constants.py.
+ * Update both files together when adding new accepted types.
+ */
+export const ACCEPTED_RECEIPT_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'application/pdf',
+] as const
+
+/** Human-readable label for the accepted receipt formats, used in upload UI hints. */
+export const ACCEPTED_RECEIPT_LABEL = 'JPG, PNG, or PDF'
+
 export const HSA_CATEGORIES: readonly HsaCategory[] = [
   'doctors_visits',
   'prescription_drugs',

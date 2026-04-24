@@ -88,6 +88,13 @@ class ReimbursementUpdate(BaseModel):
     reimbursed_amount: Decimal | None = None
     notes: str | None = None
 
+    @field_validator('reimbursed_date')
+    @classmethod
+    def reimbursed_date_not_future(cls, v: datetime.date | None) -> datetime.date | None:
+        if v is not None and v > datetime.date.today():
+            raise ValueError('Reimbursed date cannot be in the future')
+        return v
+
 
 class ExpenseSummary(BaseModel):
     """Nested inside ReimbursementOut — lightweight view of the linked expense."""

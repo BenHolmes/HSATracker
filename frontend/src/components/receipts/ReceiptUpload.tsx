@@ -3,9 +3,7 @@ import { Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { uploadReceipt } from '../../api/receipts'
-
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
-const ACCEPTED_LABEL = 'JPG, PNG, or PDF'
+import { ACCEPTED_RECEIPT_LABEL, ACCEPTED_RECEIPT_MIME_TYPES } from '../../lib/constants'
 
 interface Props {
   expenseId: string
@@ -29,8 +27,8 @@ export default function ReceiptUpload({ expenseId }: Props) {
   })
 
   const handleFile = (file: File) => {
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      toast.error(`Invalid file type. Please upload a ${ACCEPTED_LABEL}.`)
+    if (!ACCEPTED_RECEIPT_MIME_TYPES.includes(file.type)) {
+      toast.error(`Invalid file type. Please upload a ${ACCEPTED_RECEIPT_LABEL}.`)
       return
     }
     mutation.mutate(file)
@@ -69,12 +67,12 @@ export default function ReceiptUpload({ expenseId }: Props) {
         <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
           {mutation.isPending ? 'Uploading…' : 'Drop a file or click to upload'}
         </p>
-        <p className="text-xs text-slate-400 mt-0.5">{ACCEPTED_LABEL} · max 10 MB</p>
+        <p className="text-xs text-slate-400 mt-0.5">{ACCEPTED_RECEIPT_LABEL} · max 10 MB</p>
       </div>
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPTED_TYPES.join(',')}
+        accept={ACCEPTED_RECEIPT_MIME_TYPES.join(',')}
         onChange={onInputChange}
         className="hidden"
       />

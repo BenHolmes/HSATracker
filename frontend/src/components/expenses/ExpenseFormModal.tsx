@@ -8,14 +8,12 @@ import { z } from 'zod'
 import { createExpense, updateExpense } from '../../api/expenses'
 import { getReceipts, uploadReceipt } from '../../api/receipts'
 import { updateReimbursement } from '../../api/reimbursements'
-import { HSA_CATEGORIES } from '../../lib/constants'
+import { ACCEPTED_RECEIPT_MIME_TYPES, HSA_CATEGORIES } from '../../lib/constants'
 import { formatLabel } from '../../lib/formatters'
 import type { ExpenseOut, HsaCategory } from '../../types'
 import ReceiptList from '../receipts/ReceiptList'
 import ReceiptUpload from '../receipts/ReceiptUpload'
 import Modal from '../ui/Modal'
-
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
 
 const schema = z.object({
   date:           z.string().min(1, 'Date is required'),
@@ -100,7 +98,7 @@ export default function ExpenseFormModal({ expense, onClose }: Props) {
   })
 
   const handleNewFile = (file: File) => {
-    if (!ACCEPTED_TYPES.includes(file.type)) {
+    if (!ACCEPTED_RECEIPT_MIME_TYPES.includes(file.type)) {
       toast.error('Invalid file type. Please upload a JPG, PNG, or PDF.')
       return
     }
@@ -300,7 +298,7 @@ export default function ExpenseFormModal({ expense, onClose }: Props) {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept={ACCEPTED_TYPES.join(',')}
+                  accept={ACCEPTED_RECEIPT_MIME_TYPES.join(',')}
                   onChange={e => {
                     const file = e.target.files?.[0]
                     if (file) handleNewFile(file)
