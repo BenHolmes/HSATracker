@@ -99,9 +99,14 @@ async def download_receipt(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file path"
         )
     if not file_path.exists():
+        # The file was removed outside the app (e.g. a failed restore or manual
+        # disk cleanup). Auto-delete the orphaned DB record so it stops appearing
+        # in the UI — a self-healing behaviour appropriate for a self-hosted app.
+        await db.delete(receipt)
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Receipt file not found on disk",
+            detail="Receipt file not found on disk — the stale record has been removed",
         )
     return FileResponse(
         path=str(file_path),

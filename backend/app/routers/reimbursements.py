@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.constants import ReimbursementStatus
 from app.database import get_db
 from app.schemas import (
     PaginatedReimbursements,
@@ -27,7 +28,7 @@ router = APIRouter()
 
 @router.get("/", response_model=PaginatedReimbursements)
 async def list_reimbursements(
-    status: str | None = Query(None),
+    status: ReimbursementStatus | None = Query(None),
     year: int | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(200, ge=1, le=1000),
@@ -43,7 +44,7 @@ async def list_reimbursements(
     Default page size of 200 covers a full year of records in one request.
     """
     items, total, pending_amount, reimbursed_amount_ytd = await crud.get_reimbursements(
-        db, status_filter=status, year=year, page=page, size=size
+        db, status_filter=status.value if status else None, year=year, page=page, size=size
     )
     pages = max(1, -(total // -size))  # ceiling division without importing math
     return PaginatedReimbursements(

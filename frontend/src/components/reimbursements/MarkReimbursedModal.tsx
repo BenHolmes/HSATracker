@@ -50,6 +50,7 @@ export default function MarkReimbursedModal({ reimbursement, onClose }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reimbursements'] })
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['expense-receipts', reimbursement.expense_id] })
       queryClient.invalidateQueries({ queryKey: ['summary'] })
       toast.success('Marked as reimbursed')
       onClose()
